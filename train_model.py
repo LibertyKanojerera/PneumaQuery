@@ -77,11 +77,11 @@ print()
 
 # Interpret the std
 if cv_accuracy.std() < 0.05:
-    print("✓ Low variance — model is stable and consistent across folds")
+    print("[OK] Low variance -- model is stable and consistent across folds")
 elif cv_accuracy.std() < 0.10:
-    print("⚠ Moderate variance — model is reasonably stable")
+    print("[!!] Moderate variance -- model is reasonably stable")
 else:
-    print("✗ High variance — model may be overfitting, consider more data")
+    print("[XX] High variance -- model may be overfitting, consider more data")
 
 # ── Feature Importance ────────────────────────────────────────
 print()
@@ -91,7 +91,7 @@ print("=" * 50)
 importance = pd.Series(model.feature_importances_, index=features)
 importance = importance.sort_values(ascending=False)
 for feature, score in importance.items():
-    bar = "█" * int(score * 40)
+    bar = "#" * int(score * 40)
     print(f"  {feature:<28} {bar} {score:.2f}")
 
 # ── Save Model ────────────────────────────────────────────────

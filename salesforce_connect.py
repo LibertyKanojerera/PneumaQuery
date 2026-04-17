@@ -7,17 +7,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-print("Connecting to Salesforce via OAuth...")
+print("Connecting to Salesforce via OAuth (Client Credentials)...")
 
-token_url = "https://pneumaquery-dev-ed.trailblaze.my.salesforce.com/services/oauth2/token"
+my_domain = os.getenv("SF_MY_DOMAIN_URL", "").strip().rstrip("/")
+
+if not my_domain:
+    raise ValueError(
+        "SF_MY_DOMAIN_URL is missing. Add this to your .env file:\n"
+        "SF_MY_DOMAIN_URL=https://pneumaquery-dev-ed.trailblaze.my.salesforce.com"
+    )
+
+token_url = f"{my_domain}/services/oauth2/token"
 
 payload = {
-    "grant_type":    "password",
-    "client_id":     os.getenv("SF_CONSUMER_KEY"),
-    "client_secret": os.getenv("SF_CONSUMER_SECRET"),
-    "username":      os.getenv("SF_USERNAME"),
-    "password":      os.getenv("SF_PASSWORD") + os.getenv("SF_SECURITY_TOKEN"),
+    "grant_type": "client_credentials",
+    "client_id": os.getenv("SF_CONSUMER_KEY", "").strip(),
+    "client_secret": os.getenv("SF_CONSUMER_SECRET", "").strip(),
 }
+
+print("My Domain:", my_domain)
+print("Token URL:", token_url)
 
 response = requests.post(token_url, data=payload)
 print(f"Status code: {response.status_code}")
@@ -25,11 +34,11 @@ print(f"Full response: {response.text}")
 
 if response.status_code != 200:
     print(f"Login failed: {response.text}")
-    exit()
+    raise SystemExit(1)
 
 token_data   = response.json()
 access_token = token_data["access_token"]
-instance_url = token_data["instance_url"]
+instance_url = token_data.get("instance_url", my_domain)
 
 print(f"Connected! Instance: {instance_url}\n")
 
@@ -38,7 +47,19 @@ sf = Salesforce(
     session_id=access_token
 )
 
-# Load model and data
+# ── Clear existing records to avoid duplicates ────────────────
+print("Clearing existing patient records...")
+existing = sf.query("SELECT Id FROM Patient__c")
+records  = existing["records"]
+
+if records:
+    for record in records:
+        sf.Patient__c.delete(record["Id"])
+    print(f"Deleted {len(records)} existing records.\n")
+else:
+    print("No existing records found.\n")
+
+# ── Load model and data ───────────────────────────────────────
 with open("pneumaquery_model.pkl", "rb") as f:
     model = pickle.load(f)
 
